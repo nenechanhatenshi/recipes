@@ -80,12 +80,8 @@ function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){retur
 var app=document.getElementById("app"),fab=document.getElementById("fab");
 fab.onclick=function(){form()};
 
-function list(){
-  fab.classList.remove("hide");
-  var h='<div class="hd"><h1>マイレシピ🍎</h1><div style="position:relative"><button class="btn g" id="mn" aria-label="メニュー">☰</button><div class="menu hide" id="menu"><button id="imp">📋 貼り付けて追加</button><button id="tpl">🤖 AI用テンプレートをコピー</button><button id="exp">📤 データをコピー</button><button id="tgm">🏷 タグ管理</button></div></div></div><input id="q" placeholder="タイトル・材料で検索" value="'+esc(q)+'">';
-  h+='<div class="chips scr"><button class="chip'+(ftag?'':' on')+'" data-f="">すべて</button>';
-  TAGS.forEach(function(t){h+='<button class="chip'+(ftag===t?' on':'')+'" data-f="'+t+'">'+t+'</button>'});
-  h+='</div>';
+function renderRes(){
+  var h='';
   var r=recipes.filter(function(x){
     if(ftag&&x.tags.indexOf(ftag)<0)return false;
     var s=(x.title+x.sub+x.ing+x.memo).toLowerCase();return !q||s.indexOf(q.toLowerCase())>=0});
@@ -93,7 +89,18 @@ function list(){
   else{h+='<div class="grid">';r.forEach(function(x){
     h+='<div class="card" data-id="'+x.id+'"><div class="thumb"'+(x.img?' style="background-image:url('+x.img+')"':'')+'>'+(x.img?'':'🍽️')+'</div><div class="cb"><div class="ct">'+esc(x.title)+'</div><div class="cs">'+esc(x.sub)+'</div>'+(x.time?'<div class="cs">⏱ '+esc(x.time)+'</div>':'')+x.tags.map(function(t){return '<span class="tag">'+t+'</span>'}).join('')+'</div></div>'});
     h+='</div>'}
-  app.innerHTML=h;
+  var res=document.getElementById("res");res.innerHTML=h;
+  res.querySelectorAll(".card").forEach(function(c){c.onclick=function(){detail(c.dataset.id)}});
+}
+
+function list(){
+  fab.classList.remove("hide");
+  var h='<div class="hd"><h1>マイレシピ🍎</h1><div style="position:relative"><button class="btn g" id="mn" aria-label="メニュー">☰</button><div class="menu hide" id="menu"><button id="imp">📋 貼り付けて追加</button><button id="tpl">🤖 AI用テンプレートをコピー</button><button id="exp">📤 データをコピー</button><button id="tgm">🏷 タグ管理</button></div></div></div><input id="q" placeholder="タイトル・材料で検索" value="'+esc(q)+'">';
+  h+='<div class="chips scr"><button class="chip'+(ftag?'':' on')+'" data-f="">すべて</button>';
+  TAGS.forEach(function(t){h+='<button class="chip'+(ftag===t?' on':'')+'" data-f="'+t+'">'+t+'</button>'});
+  h+='</div>';
+  h+='<div id="res"></div>';
+  app.innerHTML=h;renderRes();
   var mn=document.getElementById("menu");
   document.getElementById("mn").onclick=function(){mn.classList.toggle("hide")};
   document.getElementById("imp").onclick=paste;
@@ -102,9 +109,8 @@ function list(){
   document.getElementById("tpl").onclick=function(){mn.classList.add("hide");copyText(TPL,"テンプレートをコピーしました。AIに貼り付けて、続けてレシピを送ってください。")};
   app.onclick=function(e){if(!e.target.closest("#mn,#menu"))mn.classList.add("hide")};
   var qi=document.getElementById("q");
-  qi.oninput=function(){q=qi.value;var p=qi.selectionStart;list();var n=document.getElementById("q");n.focus();n.setSelectionRange(p,p)};
+  qi.oninput=function(){q=qi.value;renderRes()};
   app.querySelectorAll("[data-f]").forEach(function(b){b.onclick=function(){ftag=b.dataset.f;list()}});
-  app.querySelectorAll(".card").forEach(function(c){c.onclick=function(){detail(c.dataset.id)}});
 }
 
 function detail(id){
