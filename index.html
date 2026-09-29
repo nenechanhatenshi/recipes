@@ -44,6 +44,11 @@ h3{font-size:15px;margin:22px 0 6px;color:var(--ac);border-left:4px solid var(--
 a{color:var(--ac);word-break:break-all}
 .prev{max-width:100%;max-height:200px;border-radius:10px;margin-top:8px;display:block}
 .hide{display:none}
+.hd{display:flex;justify-content:space-between;align-items:center}.hd .btn{padding:8px 16px;font-size:18px}
+.menu{position:absolute;right:0;top:46px;z-index:5;background:var(--card);border:1px solid var(--bd);border-radius:18px;box-shadow:0 8px 24px rgba(155,127,232,.3);padding:6px;min-width:200px}
+.menu button{display:block;width:100%;text-align:left;background:none;border:0;color:var(--tx);font:inherit;padding:12px;border-radius:12px;cursor:pointer}.menu button:active{background:var(--chip)}
+.tr{display:flex;align-items:center;gap:8px;padding:10px 0;border-bottom:1px dashed var(--bd)}.tr .btn{padding:6px 12px;font-size:13px}
+
 </style>
 </head>
 <body>
@@ -51,7 +56,8 @@ a{color:var(--ac);word-break:break-all}
 <button class="fab" id="fab" aria-label="追加">＋</button>
 <script>
 var TAGS=["お弁当","晩御飯","副菜"],KEY="recipes-v1",recipes=[],q="",ftag="";
-function load(){try{recipes=JSON.parse(localStorage.getItem(KEY)||"[]")}catch(e){recipes=[]}}
+function load(){try{recipes=JSON.parse(localStorage.getItem(KEY)||"[]")}catch(e){recipes=[]}
+  try{var t=JSON.parse(localStorage.getItem("tags-v1")||"null");if(Array.isArray(t))TAGS=t}catch(e){}}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(recipes));return true}catch(e){alert("保存できませんでした（容量オーバーの可能性）。画像を小さくしてみてください。");return false}}
 function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]})}
 var app=document.getElementById("app"),fab=document.getElementById("fab");
@@ -59,7 +65,7 @@ fab.onclick=function(){form()};
 
 function list(){
   fab.classList.remove("hide");
-  var h='<h1>マイレシピ🍎</h1><input id="q" placeholder="タイトル・材料で検索" value="'+esc(q)+'">';
+  var h='<div class="hd"><h1>マイレシピ🍎</h1><div style="position:relative"><button class="btn g" id="mn" aria-label="メニュー">☰</button><div class="menu hide" id="menu"><button id="imp">📋 貼り付けて追加</button><button id="exp">📤 データをコピー</button><button id="tgm">🏷 タグ管理</button></div></div></div><input id="q" placeholder="タイトル・材料で検索" value="'+esc(q)+'">';
   h+='<div class="chips"><button class="chip'+(ftag?'':' on')+'" data-f="">すべて</button>';
   TAGS.forEach(function(t){h+='<button class="chip'+(ftag===t?' on':'')+'" data-f="'+t+'">'+t+'</button>'});
   h+='</div>';
@@ -70,9 +76,13 @@ function list(){
   else{h+='<div class="grid">';r.forEach(function(x){
     h+='<div class="card" data-id="'+x.id+'"><div class="thumb"'+(x.img?' style="background-image:url('+x.img+')"':'')+'>'+(x.img?'':'🍽️')+'</div><div class="cb"><div class="ct">'+esc(x.title)+'</div><div class="cs">'+esc(x.sub)+'</div>'+(x.time?'<div class="cs">⏱ '+esc(x.time)+'</div>':'')+x.tags.map(function(t){return '<span class="tag">'+t+'</span>'}).join('')+'</div></div>'});
     h+='</div>'}
-  h+='<div class="row" style="justify-content:center"><button class="btn g" id="imp">📋 貼り付けて追加</button><button class="btn g" id="exp">📤 データをコピー</button></div>';
   app.innerHTML=h;
-  document.getElementById("imp").onclick=paste;document.getElementById("exp").onclick=exportData;
+  var mn=document.getElementById("menu");
+  document.getElementById("mn").onclick=function(){mn.classList.toggle("hide")};
+  document.getElementById("imp").onclick=paste;
+  document.getElementById("exp").onclick=function(){mn.classList.add("hide");exportData()};
+  document.getElementById("tgm").onclick=tagMgr;
+  app.onclick=function(e){if(!e.target.closest("#mn,#menu"))mn.classList.add("hide")};
   var qi=document.getElementById("q");
   qi.oninput=function(){q=qi.value;var p=qi.selectionStart;list();var n=document.getElementById("q");n.focus();n.setSelectionRange(p,p)};
   app.querySelectorAll("[data-f]").forEach(function(b){b.onclick=function(){ftag=b.dataset.f;list()}});
@@ -173,7 +183,7 @@ function paste(){
         a.forEach(function(r){
           if(r&&r.title&&!recipes.some(function(o){return o.id===r.id})){
             recipes.push({id:r.id||String(Date.now()+n),title:String(r.title),sub:r.sub||"",time:r.time||"",
-              tags:Array.isArray(r.tags)?r.tags.filter(function(t){return TAGS.indexOf(t)>=0}):[],
+              tags:Array.isArray(r.tags)?r.tags.filter(function(t){if(typeof t!=="string")return false;if(TAGS.indexOf(t)<0){TAGS.push(t);saveTags()}return true}):[],
               ing:r.ing||"",steps:r.steps||"",url:r.url||"",memo:r.memo||"",img:r.img||""});n++}});
         if(save()){alert(n+"件を追加しました");list()}
         return}catch(e){}}
@@ -183,6 +193,35 @@ function exportData(){
   var out=JSON.stringify(recipes.map(function(r){var c={};for(var k in r)if(k!=="img")c[k]=r[k];return c}));
   function fb(){prompt("コピーしてください（画像は含まれません）",out)}
   try{navigator.clipboard.writeText(out).then(function(){alert("コピーしました（画像は含まれません）")},fb)}catch(e){fb()}}
+
+function saveTags(){try{localStorage.setItem("tags-v1",JSON.stringify(TAGS))}catch(e){}}
+function tagMgr(){
+  fab.classList.add("hide");window.scrollTo(0,0);
+  var h='<div class="row" style="margin:0 0 12px"><button class="btn g" id="back">← 戻る</button></div><h1>タグ管理</h1><div class="cs">タグの追加・名前の変更・削除ができます。</div>'
+  +'<div style="display:flex;gap:8px;margin-top:14px"><input id="nt" placeholder="新しいタグ（例：朝ごはん）"><button class="btn" id="ad" style="white-space:nowrap">追加</button></div><div style="margin-top:10px">';
+  TAGS.forEach(function(t,i){
+    var n=recipes.filter(function(r){return r.tags.indexOf(t)>=0}).length;
+    h+='<div class="tr"><span class="tag" style="font-size:14px;padding:4px 12px;margin:0">'+esc(t)+'</span><span class="cs">'+n+'件</span><span style="flex:1"></span><button class="btn g" data-r="'+i+'">名前変更</button><button class="btn d" data-d="'+i+'">削除</button></div>'});
+  if(!TAGS.length)h+='<div class="empty">タグがありません</div>';
+  h+='</div>';
+  app.innerHTML=h;
+  document.getElementById("back").onclick=list;
+  document.getElementById("ad").onclick=function(){
+    var v=document.getElementById("nt").value.trim();if(!v)return;
+    if(TAGS.indexOf(v)>=0){alert("すでにあります");return}
+    TAGS.push(v);saveTags();tagMgr()};
+  app.querySelectorAll("[data-r]").forEach(function(b){b.onclick=function(){
+    var i=+b.dataset.r,o=TAGS[i],v=(prompt("新しい名前",o)||"").trim();
+    if(!v||v===o)return;
+    if(TAGS.indexOf(v)>=0){alert("すでにあります");return}
+    TAGS[i]=v;recipes.forEach(function(r){r.tags=r.tags.map(function(t){return t===o?v:t})});
+    if(ftag===o)ftag=v;saveTags();save();tagMgr()}});
+  app.querySelectorAll("[data-d]").forEach(function(b){b.onclick=function(){
+    var i=+b.dataset.d,o=TAGS[i];
+    if(!confirm("「"+o+"」を削除しますか？\nレシピからも外れます（レシピ自体は消えません）"))return;
+    TAGS.splice(i,1);recipes.forEach(function(r){r.tags=r.tags.filter(function(t){return t!==o})});
+    if(ftag===o)ftag="";saveTags();save();tagMgr()}});
+}
 
 load();list();
 </script>
