@@ -44,6 +44,11 @@ h3{font-size:15px;margin:22px 0 6px;color:var(--ac);border-left:4px solid var(--
 a{color:var(--ac);word-break:break-all}
 .prev{max-width:100%;max-height:200px;border-radius:10px;margin-top:8px;display:block}
 .hide{display:none}
+.sh{font-weight:700;color:var(--ac);margin:16px 0 6px}
+.ig li.sh{border:0;padding:12px 0 2px}
+.stp{display:flex;gap:10px;margin-bottom:8px}
+.no{flex:none;width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,var(--ac),var(--ac2));color:#fff;font-size:13px;display:flex;align-items:center;justify-content:center;margin-top:2px}
+
 .chips.scr{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding-bottom:4px}
 .chips.scr::-webkit-scrollbar{display:none}
 .chips.scr .chip{flex:none;white-space:nowrap}
@@ -77,7 +82,7 @@ fab.onclick=function(){form()};
 
 function list(){
   fab.classList.remove("hide");
-  var h='<div class="hd"><h1>マイレシピ🍎</h1><div style="position:relative"><button class="btn g" id="mn" aria-label="メニュー">☰</button><div class="menu hide" id="menu"><button id="imp">📋 貼り付けて追加</button><button id="exp">📤 データをコピー</button><button id="tgm">🏷 タグ管理</button></div></div></div><input id="q" placeholder="タイトル・材料で検索" value="'+esc(q)+'">';
+  var h='<div class="hd"><h1>マイレシピ🍎</h1><div style="position:relative"><button class="btn g" id="mn" aria-label="メニュー">☰</button><div class="menu hide" id="menu"><button id="imp">📋 貼り付けて追加</button><button id="tpl">🤖 AI用テンプレートをコピー</button><button id="exp">📤 データをコピー</button><button id="tgm">🏷 タグ管理</button></div></div></div><input id="q" placeholder="タイトル・材料で検索" value="'+esc(q)+'">';
   h+='<div class="chips scr"><button class="chip'+(ftag?'':' on')+'" data-f="">すべて</button>';
   TAGS.forEach(function(t){h+='<button class="chip'+(ftag===t?' on':'')+'" data-f="'+t+'">'+t+'</button>'});
   h+='</div>';
@@ -94,6 +99,7 @@ function list(){
   document.getElementById("imp").onclick=paste;
   document.getElementById("exp").onclick=function(){mn.classList.add("hide");exportData()};
   document.getElementById("tgm").onclick=tagMgr;
+  document.getElementById("tpl").onclick=function(){mn.classList.add("hide");copyText(TPL,"テンプレートをコピーしました。AIに貼り付けて、続けてレシピを送ってください。")};
   app.onclick=function(e){if(!e.target.closest("#mn,#menu"))mn.classList.add("hide")};
   var qi=document.getElementById("q");
   qi.oninput=function(){q=qi.value;var p=qi.selectionStart;list();var n=document.getElementById("q");n.focus();n.setSelectionRange(p,p)};
@@ -108,8 +114,8 @@ function detail(id){
   if(x.img)h+='<img class="hero" src="'+x.img+'" alt="">';
   h+='<h1 style="margin-bottom:0">'+esc(x.title)+'</h1><div class="cs">'+esc(x.sub)+'</div>'+(x.time?'<div class="cs">⏱ 調理時間：'+esc(x.time)+'</div>':'')+x.tags.map(function(t){return '<span class="tag">'+t+'</span>'}).join('');
   var ing=x.ing.split("\n").filter(Boolean),st=x.steps.split("\n").filter(Boolean);
-  if(ing.length)h+='<h3>材料</h3><ul class="ig">'+ing.map(function(i){return '<li>'+esc(i)+'</li>'}).join('')+'</ul>';
-  if(st.length)h+='<h3>作り方</h3><ol class="st">'+st.map(function(i){return '<li>'+esc(i)+'</li>'}).join('')+'</ol>';
+  if(ing.length)h+='<h3>材料</h3><ul class="ig">'+ing.map(function(i){return isHead(i)?'<li class="sh">'+esc(i.trim())+'</li>':'<li>'+esc(i)+'</li>'}).join('')+'</ul>';
+  if(st.length)h+='<h3>作り方</h3><div>'+(function(){var n=0;return st.map(function(l){if(isHead(l))return '<div class="sh">'+esc(l.trim())+'</div>';n++;return '<div class="stp"><span class="no">'+n+'</span><span>'+esc(unnum(l))+'</span></div>'}).join('')})()+'</div>';
   if(x.url){var ok=/^https?:\/\//i.test(x.url);h+='<h3>参考URL</h3>'+(ok?'<a href="'+esc(x.url)+'" target="_blank" rel="noopener noreferrer">'+esc(x.url)+'</a>':esc(x.url))}
   if(x.memo)h+='<h3>メモ</h3><div class="pre">'+esc(x.memo)+'</div>';
   h+='<div class="row"><button class="btn" id="ed">編集</button><button class="btn d" id="del">削除</button></div>';
@@ -172,8 +178,8 @@ function parseText(t){
       b.memo=b.memo||[];b.memo.push(s);return}
     b[cur].push(s)});
   function j(k,sep){return (b[k]||[]).join(sep)}
-  x.title=j("title"," ");x.sub=j("sub"," ");x.time=j("time"," ");x.url=(b.url||[""])[0];
-  var tg=j("tg"," ");x.tags=TAGS.filter(function(t){return tg.indexOf(t)>=0});
+  x.title=j("title"," ");x.sub=j("sub"," ");x.time=j("time"," ");x.url=(b.url&&b.url[0])||"";
+  x.tags=[];j("tg"," ").split(/[\s,、，・\/／]+/).forEach(function(t){if(!t||x.tags.indexOf(t)>=0)return;if(TAGS.indexOf(t)<0){TAGS.push(t);saveTags()}x.tags.push(t)});
   x.ing=(b.ing||[]).map(function(s){return s.replace(/^[・●\-]\s*/,"")}).join("\n");
   x.steps=(b.steps||[]).map(function(s){return s.replace(/^(?:\d+[.．)）、]|[①-⑳]|[・●\-])\s*/,"")}).join("\n");
   x.memo=j("memo","\n");
@@ -249,6 +255,13 @@ function bindAwake(){
       if(!("wakeLock" in navigator)){alert("この端末・ブラウザでは使えません");aw.checked=false;return}
       acquire(function(ok){if(ok){awake=true;storeAwake()}else{aw.checked=false;alert("オンにできませんでした")}})
     }else{awake=false;if(wl){wl.release();wl=null}storeAwake()}}}
+
+var TPL="AIレシピ出力フォーマット\n\n以下のフォーマットに厳密に合わせて、レシピの内容を整理してください。\n\n【出力ルール】\n・「タイトル:」は付けず、レシピ名から始める\n・空行は一切入れない\n・指定された項目の順番を変えない\n・材料は内容に応じて「【○○】」で分類する\n・作り方も内容に応じて「【○○】」で分類する\n・材料・作り方は、元レシピの内容を忠実に整理する\n・元レシピにない材料や工程を勝手に追加しない\n・元レシピに参考URLがない場合は「参考URL：」の後を空欄にする\n・メモには、型・代用品・注意点・保存方法など、元レシピに記載されている補足情報を整理する\n・調理時間は元レシピに記載がない場合、工程から妥当な時間を算出して記載する\n・複数のレシピを組み合わせる場合は、それぞれの材料・工程が分かるように分類する\n・番号は作り方全体で連番にする\n・文章は簡潔にし、レシピ帳としてそのまま保存できる形にする\n\n【出力フォーマット】\nレシピ名\nタグ：お菓子\n調理時間：○○分\n材料：\n【○○】\n・材料名 分量\n・材料名 分量\n【○○】\n・材料名 分量\n・材料名 分量\n作り方：\n【○○】\n1. ○○する。\n2. ○○する。\n【○○】\n3. ○○する。\n4. ○○する。\n【○○】\n5. ○○する。\n6. ○○する。\n参考URL：\nメモ：\n・○○\n・○○\n\n【レシピ】\n";
+function copyText(t,msg){
+  function fb(){prompt("コピーしてください",t)}
+  try{navigator.clipboard.writeText(t).then(function(){alert(msg)},fb)}catch(e){fb()}}
+function isHead(l){return /^【.*】$/.test(l.trim())}
+function unnum(l){return l.trim().replace(/^(?:\d+[.．)）、]|[①-⑳])\s*/,"")}
 
 load();list();
 </script>
