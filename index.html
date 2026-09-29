@@ -70,7 +70,9 @@ function list(){
   else{h+='<div class="grid">';r.forEach(function(x){
     h+='<div class="card" data-id="'+x.id+'"><div class="thumb"'+(x.img?' style="background-image:url('+x.img+')"':'')+'>'+(x.img?'':'🍽️')+'</div><div class="cb"><div class="ct">'+esc(x.title)+'</div><div class="cs">'+esc(x.sub)+'</div>'+(x.time?'<div class="cs">⏱ '+esc(x.time)+'</div>':'')+x.tags.map(function(t){return '<span class="tag">'+t+'</span>'}).join('')+'</div></div>'});
     h+='</div>'}
+  h+='<div class="row" style="justify-content:center"><button class="btn g" id="imp">📋 貼り付けて追加</button><button class="btn g" id="exp">📤 データをコピー</button></div>';
   app.innerHTML=h;
+  document.getElementById("imp").onclick=paste;document.getElementById("exp").onclick=exportData;
   var qi=document.getElementById("q");
   qi.oninput=function(){q=qi.value;var p=qi.selectionStart;list();var n=document.getElementById("q");n.focus();n.setSelectionRange(p,p)};
   app.querySelectorAll("[data-f]").forEach(function(b){b.onclick=function(){ftag=b.dataset.f;list()}});
@@ -133,6 +135,55 @@ function form(x){
     if(x.id)recipes=recipes.map(function(r){return r.id===x.id?d:r});else recipes.unshift(d);
     if(save())detail(d.id);else recipes=old};
 }
+function parseText(t){
+  var x={id:"",title:"",sub:"",time:"",tags:[],ing:"",steps:"",url:"",memo:"",img:""};
+  var map={"タイトル":"title","サブタイトル":"sub","調理時間":"time","時間":"time","タグ":"tg","材料":"ing","作り方":"steps","手順":"steps","参考URL":"url","URL":"url","メモ":"memo"};
+  var re=/^[【\[■●]?\s*(サブタイトル|タイトル|調理時間|時間|タグ|材料|作り方|手順|参考URL|URL|メモ)(?:[】\]]\s*[:：]?|\s*[:：]|\s*$)\s*(.*)$/;
+  var cur=null,b={},first=true;
+  t.split(/\r?\n/).forEach(function(l){
+    var s=l.trim();if(!s)return;
+    var m=s.match(re);
+    if(m){cur=map[m[1]];b[cur]=b[cur]||[];if(m[2])b[cur].push(m[2]);first=false;return}
+    if(!cur){
+      if(first){b.title=[s];first=false;return}
+      if(/^https?:\/\//i.test(s)){b.url=[s];return}
+      b.memo=b.memo||[];b.memo.push(s);return}
+    b[cur].push(s)});
+  function j(k,sep){return (b[k]||[]).join(sep)}
+  x.title=j("title"," ");x.sub=j("sub"," ");x.time=j("time"," ");x.url=(b.url||[""])[0];
+  var tg=j("tg"," ");x.tags=TAGS.filter(function(t){return tg.indexOf(t)>=0});
+  x.ing=(b.ing||[]).map(function(s){return s.replace(/^[・●\-]\s*/,"")}).join("\n");
+  x.steps=(b.steps||[]).map(function(s){return s.replace(/^(?:\d+[.．)）、]|[①-⑳]|[・●\-])\s*/,"")}).join("\n");
+  x.memo=j("memo","\n");
+  return x}
+
+function paste(){
+  fab.classList.add("hide");window.scrollTo(0,0);
+  app.innerHTML='<h1>貼り付けて追加</h1><div class="cs">レシピの文章か、「データをコピー」でコピーしたデータを貼り付けてください。文章のときは、内容を確認してから保存できます。</div>'
+  +'<label>ここに貼り付け</label><textarea id="pt" style="min-height:240px" placeholder="例&#10;タイトル：鶏の照り焼き&#10;調理時間：20分&#10;タグ：お弁当&#10;材料：&#10;鶏もも肉 1枚&#10;作り方：&#10;1. 焼く"></textarea>'
+  +'<div class="row"><button class="btn" id="go">取り込む</button><button class="btn g" id="cx">戻る</button></div>';
+  document.getElementById("cx").onclick=list;
+  document.getElementById("go").onclick=function(){
+    var v=document.getElementById("pt").value.trim();
+    if(!v){alert("貼り付けてください");return}
+    if(v[0]==="["||v[0]==="{"){
+      try{
+        var a=JSON.parse(v);if(!Array.isArray(a))a=a.recipes;
+        var n=0;
+        a.forEach(function(r){
+          if(r&&r.title&&!recipes.some(function(o){return o.id===r.id})){
+            recipes.push({id:r.id||String(Date.now()+n),title:String(r.title),sub:r.sub||"",time:r.time||"",
+              tags:Array.isArray(r.tags)?r.tags.filter(function(t){return TAGS.indexOf(t)>=0}):[],
+              ing:r.ing||"",steps:r.steps||"",url:r.url||"",memo:r.memo||"",img:r.img||""});n++}});
+        if(save()){alert(n+"件を追加しました");list()}
+        return}catch(e){}}
+    form(parseText(v))}}
+
+function exportData(){
+  var out=JSON.stringify(recipes.map(function(r){var c={};for(var k in r)if(k!=="img")c[k]=r[k];return c}));
+  function fb(){prompt("コピーしてください（画像は含まれません）",out)}
+  try{navigator.clipboard.writeText(out).then(function(){alert("コピーしました（画像は含まれません）")},fb)}catch(e){fb()}}
+
 load();list();
 </script>
 </body>
