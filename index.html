@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="マイレシピ">
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%23f5f1ff'/%3E%3Ctext x='50' y='72' font-size='64' text-anchor='middle'%3E%F0%9F%8D%8E%3C/text%3E%3C/svg%3E">
+<title>マイレシピ🍎</title>
+<style>
+:root{--bg:#f5f1ff;--card:#fff;--tx:#3f3560;--sub:#8b84ac;--ac:#9b7fe8;--ac2:#7cc8f2;--bd:#e0d9f7;--chip:#e6f4fd;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#1d1a2c;--card:#292540;--tx:#efeaff;--sub:#a9a2c8;--ac:#b59cff;--ac2:#6fb8e6;--bd:#3d3660;--chip:#2c3a58}}
+:root[data-theme="dark"]{--bg:#1d1a2c;--card:#292540;--tx:#efeaff;--sub:#a9a2c8;--ac:#b59cff;--ac2:#6fb8e6;--bd:#3d3660;--chip:#2c3a58}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg) linear-gradient(160deg,var(--bg),var(--chip)) fixed;color:var(--tx);font-family:-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;line-height:1.6}
+.wrap{max-width:640px;margin:0 auto;padding:16px 16px 96px}
+h1{font-size:24px;margin:8px 0 12px;background:linear-gradient(90deg,var(--ac),var(--ac2));-webkit-background-clip:text;background-clip:text;color:transparent;display:inline-block}
+input,textarea{width:100%;font:inherit;color:var(--tx);background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:10px 12px}
+textarea{min-height:90px;resize:vertical}
+label{display:block;font-size:13px;color:var(--sub);margin:14px 0 4px}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+.chip{border:1px solid var(--bd);background:var(--chip);color:var(--tx);border-radius:999px;padding:6px 14px;font:inherit;font-size:14px;cursor:pointer}
+.chip.on{background:linear-gradient(135deg,var(--ac),var(--ac2));border-color:transparent;color:#fff}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:20px;overflow:hidden;cursor:pointer;box-shadow:0 4px 14px rgba(155,127,232,.15)}
+.thumb{aspect-ratio:4/3;background:linear-gradient(135deg,#e6dcff,#d6efff) center/cover;display:flex;align-items:center;justify-content:center;font-size:32px}
+.cb{padding:10px}
+.ct{font-weight:700;font-size:15px}
+.cs{font-size:12px;color:var(--sub);margin-top:2px}
+.tag{display:inline-block;font-size:11px;background:var(--chip);color:var(--ac);border:1px solid var(--bd);border-radius:999px;padding:1px 9px;margin:6px 4px 0 0}
+.fab{position:fixed;right:20px;bottom:calc(20px + env(safe-area-inset-bottom,0px));width:56px;height:56px;border-radius:50%;border:0;background:linear-gradient(135deg,var(--ac),var(--ac2));color:#fff;font-size:30px;box-shadow:0 6px 18px rgba(155,127,232,.5);cursor:pointer}
+.btn{border:0;border-radius:999px;padding:11px 20px;font:inherit;cursor:pointer;background:linear-gradient(135deg,var(--ac),var(--ac2));color:#fff}
+.btn.g{background:var(--chip);color:var(--ac)}.btn.d{background:transparent;color:#e0648a}
+.row{display:flex;gap:10px;margin-top:20px;flex-wrap:wrap}
+.hero{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:22px}
+.pre{white-space:pre-wrap}
+ol.st{padding-left:22px}ol.st li{margin-bottom:8px}
+ul.ig{list-style:none;padding:0}ul.ig li{padding:6px 0;border-bottom:1px dashed var(--bd)}
+h3{font-size:15px;margin:22px 0 6px;color:var(--ac);border-left:4px solid var(--ac2);padding-left:8px}
+.empty{text-align:center;color:var(--sub);padding:48px 0}
+a{color:var(--ac);word-break:break-all}
+.prev{max-width:100%;max-height:200px;border-radius:10px;margin-top:8px;display:block}
+.hide{display:none}
+</style>
+</head>
+<body>
+<div class="wrap" id="app"></div>
+<button class="fab" id="fab" aria-label="追加">＋</button>
+<script>
+var TAGS=["お弁当","晩御飯","副菜"],KEY="recipes-v1",recipes=[],q="",ftag="";
+function load(){try{recipes=JSON.parse(localStorage.getItem(KEY)||"[]")}catch(e){recipes=[]}}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(recipes));return true}catch(e){alert("保存できませんでした（容量オーバーの可能性）。画像を小さくしてみてください。");return false}}
+function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]})}
+var app=document.getElementById("app"),fab=document.getElementById("fab");
+fab.onclick=function(){form()};
+
+function list(){
+  fab.classList.remove("hide");
+  var h='<h1>マイレシピ🍎</h1><input id="q" placeholder="タイトル・材料で検索" value="'+esc(q)+'">';
+  h+='<div class="chips"><button class="chip'+(ftag?'':' on')+'" data-f="">すべて</button>';
+  TAGS.forEach(function(t){h+='<button class="chip'+(ftag===t?' on':'')+'" data-f="'+t+'">'+t+'</button>'});
+  h+='</div>';
+  var r=recipes.filter(function(x){
+    if(ftag&&x.tags.indexOf(ftag)<0)return false;
+    var s=(x.title+x.sub+x.ing+x.memo).toLowerCase();return !q||s.indexOf(q.toLowerCase())>=0});
+  if(!r.length)h+='<div class="empty">'+(recipes.length?'該当なし':'まだレシピがありません<br>右下の＋から追加しましょう')+'</div>';
+  else{h+='<div class="grid">';r.forEach(function(x){
+    h+='<div class="card" data-id="'+x.id+'"><div class="thumb"'+(x.img?' style="background-image:url('+x.img+')"':'')+'>'+(x.img?'':'🍽️')+'</div><div class="cb"><div class="ct">'+esc(x.title)+'</div><div class="cs">'+esc(x.sub)+'</div>'+(x.time?'<div class="cs">⏱ '+esc(x.time)+'</div>':'')+x.tags.map(function(t){return '<span class="tag">'+t+'</span>'}).join('')+'</div></div>'});
+    h+='</div>'}
+  app.innerHTML=h;
+  var qi=document.getElementById("q");
+  qi.oninput=function(){q=qi.value;var p=qi.selectionStart;list();var n=document.getElementById("q");n.focus();n.setSelectionRange(p,p)};
+  app.querySelectorAll("[data-f]").forEach(function(b){b.onclick=function(){ftag=b.dataset.f;list()}});
+  app.querySelectorAll(".card").forEach(function(c){c.onclick=function(){detail(c.dataset.id)}});
+}
+
+function detail(id){
+  var x=recipes.find(function(r){return r.id===id});if(!x)return list();
+  fab.classList.add("hide");window.scrollTo(0,0);
+  var h='<div class="row" style="margin:0 0 12px"><button class="btn g" id="back">← 戻る</button></div>';
+  if(x.img)h+='<img class="hero" src="'+x.img+'" alt="">';
+  h+='<h1 style="margin-bottom:0">'+esc(x.title)+'</h1><div class="cs">'+esc(x.sub)+'</div>'+(x.time?'<div class="cs">⏱ 調理時間：'+esc(x.time)+'</div>':'')+x.tags.map(function(t){return '<span class="tag">'+t+'</span>'}).join('');
+  var ing=x.ing.split("\n").filter(Boolean),st=x.steps.split("\n").filter(Boolean);
+  if(ing.length)h+='<h3>材料</h3><ul class="ig">'+ing.map(function(i){return '<li>'+esc(i)+'</li>'}).join('')+'</ul>';
+  if(st.length)h+='<h3>作り方</h3><ol class="st">'+st.map(function(i){return '<li>'+esc(i)+'</li>'}).join('')+'</ol>';
+  if(x.url){var ok=/^https?:\/\//i.test(x.url);h+='<h3>参考URL</h3>'+(ok?'<a href="'+esc(x.url)+'" target="_blank" rel="noopener noreferrer">'+esc(x.url)+'</a>':esc(x.url))}
+  if(x.memo)h+='<h3>メモ</h3><div class="pre">'+esc(x.memo)+'</div>';
+  h+='<div class="row"><button class="btn" id="ed">編集</button><button class="btn d" id="del">削除</button></div>';
+  app.innerHTML=h;
+  document.getElementById("back").onclick=list;
+  document.getElementById("ed").onclick=function(){form(x)};
+  document.getElementById("del").onclick=function(){if(confirm("このレシピを削除しますか？")){recipes=recipes.filter(function(r){return r.id!==id});save();list()}};
+}
+
+function form(x){
+  fab.classList.add("hide");window.scrollTo(0,0);
+  x=x||{id:"",title:"",sub:"",time:"",tags:[],ing:"",steps:"",url:"",memo:"",img:""};
+  var img=x.img,tags=x.tags.slice();
+  var h='<h1>'+(x.id?'レシピを編集':'レシピを追加')+'</h1>'
+  +'<label>画像</label><input type="file" id="f" accept="image/*"><img class="prev'+(img?'':' hide')+'" id="pv" src="'+(img||'')+'"><button class="btn g'+(img?'':' hide')+'" id="rm" style="margin-top:8px">画像を外す</button>'
+  +'<label>タイトル *</label><input id="t" value="'+esc(x.title)+'">'
+  +'<label>サブタイトル</label><input id="s" value="'+esc(x.sub)+'">'
+  +'<label>調理時間</label><input id="tm" placeholder="例：20分" value="'+esc(x.time)+'">'
+  +'<label>タグ</label><div class="chips" id="tg">'+TAGS.map(function(t){return '<button type="button" class="chip'+(tags.indexOf(t)>=0?' on':'')+'" data-t="'+t+'">'+t+'</button>'}).join('')+'</div>'
+  +'<label>材料（1行に1つ）</label><textarea id="i">'+esc(x.ing)+'</textarea>'
+  +'<label>作り方（1行に1手順）</label><textarea id="st">'+esc(x.steps)+'</textarea>'
+  +'<label>参考URL</label><input id="u" type="url" placeholder="https://" value="'+esc(x.url)+'">'
+  +'<label>メモ</label><textarea id="m">'+esc(x.memo)+'</textarea>'
+  +'<div class="row"><button class="btn" id="ok">保存</button><button class="btn g" id="cx">キャンセル</button></div>';
+  app.innerHTML=h;
+  var pv=document.getElementById("pv"),rm=document.getElementById("rm");
+  document.getElementById("f").onchange=function(e){
+    var file=e.target.files[0];if(!file)return;
+    var rd=new FileReader();rd.onload=function(){var im=new Image();im.onload=function(){
+      var m=800,r=Math.min(1,m/Math.max(im.width,im.height)),c=document.createElement("canvas");
+      c.width=Math.round(im.width*r);c.height=Math.round(im.height*r);
+      c.getContext("2d").drawImage(im,0,0,c.width,c.height);
+      img=c.toDataURL("image/jpeg",0.75);pv.src=img;pv.classList.remove("hide");rm.classList.remove("hide")};im.src=rd.result};
+    rd.readAsDataURL(file)};
+  rm.onclick=function(){img="";pv.classList.add("hide");rm.classList.add("hide")};
+  document.querySelectorAll("#tg .chip").forEach(function(b){b.onclick=function(){
+    var t=b.dataset.t,i=tags.indexOf(t);if(i>=0)tags.splice(i,1);else tags.push(t);b.classList.toggle("on")}});
+  document.getElementById("cx").onclick=function(){x.id?detail(x.id):list()};
+  document.getElementById("ok").onclick=function(){
+    var t=document.getElementById("t").value.trim();if(!t){alert("タイトルを入力してください");return}
+    var d={id:x.id||String(Date.now()),title:t,sub:document.getElementById("s").value.trim(),time:document.getElementById("tm").value.trim(),tags:tags,
+      ing:document.getElementById("i").value,steps:document.getElementById("st").value,
+      url:document.getElementById("u").value.trim(),memo:document.getElementById("m").value,img:img};
+    var old=recipes.slice();
+    if(x.id)recipes=recipes.map(function(r){return r.id===x.id?d:r});else recipes.unshift(d);
+    if(save())detail(d.id);else recipes=old};
+}
+load();list();
+</script>
+</body>
+</html>
