@@ -3,10 +3,6 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="マイレシピ">
-<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <title>マイレシピ🍎</title>
 <style>
 :root{--bg:#f5f1ff;--card:#fff;--tx:#3f3560;--sub:#8b84ac;--ac:#9b7fe8;--ac2:#7cc8f2;--bd:#e0d9f7;--chip:#e6f4fd;
@@ -44,8 +40,16 @@ h3{font-size:15px;margin:22px 0 6px;color:var(--ac);border-left:4px solid var(--
 a{color:var(--ac);word-break:break-all}
 .prev{max-width:100%;max-height:200px;border-radius:10px;margin-top:8px;display:block}
 .hide{display:none}
+.mrow{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:10px 12px;border-bottom:1px solid var(--bd);margin-bottom:4px;font-size:14px;white-space:nowrap}
+.sw{position:relative;width:46px;height:26px;flex:none;display:block;margin:0}
+.sw input{position:absolute;opacity:0;width:0;height:0;padding:0;border:0}
+.sl{position:absolute;inset:0;background:var(--bd);border-radius:999px;transition:.2s;cursor:pointer}
+.sl:before{content:"";position:absolute;width:20px;height:20px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s}
+.sw input:checked+.sl{background:linear-gradient(135deg,var(--ac),var(--ac2))}
+.sw input:checked+.sl:before{transform:translateX(20px)}
+
 .hd{display:flex;justify-content:space-between;align-items:center}.hd .btn{padding:8px 16px;font-size:18px}
-.menu{position:absolute;right:0;top:46px;z-index:5;background:var(--card);border:1px solid var(--bd);border-radius:18px;box-shadow:0 8px 24px rgba(155,127,232,.3);padding:6px;min-width:200px}
+.menu{position:absolute;right:0;top:46px;z-index:5;background:var(--card);border:1px solid var(--bd);border-radius:18px;box-shadow:0 8px 24px rgba(155,127,232,.3);padding:6px;min-width:240px}
 .menu button{display:block;width:100%;text-align:left;background:none;border:0;color:var(--tx);font:inherit;padding:12px;border-radius:12px;cursor:pointer}.menu button:active{background:var(--chip)}
 .tr{display:flex;align-items:center;gap:8px;padding:10px 0;border-bottom:1px dashed var(--bd)}.tr .btn{padding:6px 12px;font-size:13px}
 
@@ -65,7 +69,7 @@ fab.onclick=function(){form()};
 
 function list(){
   fab.classList.remove("hide");
-  var h='<div class="hd"><h1>マイレシピ🍎</h1><div style="position:relative"><button class="btn g" id="mn" aria-label="メニュー">☰</button><div class="menu hide" id="menu"><button id="imp">📋 貼り付けて追加</button><button id="exp">📤 データをコピー</button><button id="tgm">🏷 タグ管理</button></div></div></div><input id="q" placeholder="タイトル・材料で検索" value="'+esc(q)+'">';
+  var h='<div class="hd"><h1>マイレシピ🍎</h1><div style="position:relative"><button class="btn g" id="mn" aria-label="メニュー">☰</button><div class="menu hide" id="menu"><div class="mrow"><span>☀️ 画面を暗くしない</span><label class="sw"><input type="checkbox" id="aw"><span class="sl"></span></label></div><button id="imp">📋 貼り付けて追加</button><button id="exp">📤 データをコピー</button><button id="tgm">🏷 タグ管理</button></div></div></div><input id="q" placeholder="タイトル・材料で検索" value="'+esc(q)+'">';
   h+='<div class="chips"><button class="chip'+(ftag?'':' on')+'" data-f="">すべて</button>';
   TAGS.forEach(function(t){h+='<button class="chip'+(ftag===t?' on':'')+'" data-f="'+t+'">'+t+'</button>'});
   h+='</div>';
@@ -78,6 +82,12 @@ function list(){
     h+='</div>'}
   app.innerHTML=h;
   var mn=document.getElementById("menu");
+  var aw=document.getElementById("aw");aw.checked=awake;
+  aw.onchange=function(){
+    if(aw.checked){
+      if(!("wakeLock" in navigator)){alert("この端末・ブラウザでは使えません");aw.checked=false;return}
+      acquire(function(ok){if(ok){awake=true;storeAwake()}else{aw.checked=false;alert("オンにできませんでした")}})
+    }else{awake=false;if(wl){wl.release();wl=null}storeAwake()}};
   document.getElementById("mn").onclick=function(){mn.classList.toggle("hide")};
   document.getElementById("imp").onclick=paste;
   document.getElementById("exp").onclick=function(){mn.classList.add("hide");exportData()};
@@ -222,6 +232,13 @@ function tagMgr(){
     TAGS.splice(i,1);recipes.forEach(function(r){r.tags=r.tags.filter(function(t){return t!==o})});
     if(ftag===o)ftag="";saveTags();save();tagMgr()}});
 }
+
+var awake=false,wl=null;
+function acquire(cb){try{navigator.wakeLock.request("screen").then(function(l){wl=l;l.addEventListener("release",function(){wl=null});if(cb)cb(true)}).catch(function(){if(cb)cb(false)})}catch(e){if(cb)cb(false)}}
+function storeAwake(){try{localStorage.setItem("awake-v1",awake?"1":"0")}catch(e){}}
+try{awake=localStorage.getItem("awake-v1")==="1"}catch(e){}
+if(awake&&"wakeLock" in navigator){acquire();document.addEventListener("click",function(){if(awake&&!wl)acquire()},{once:true})}
+document.addEventListener("visibilitychange",function(){if(document.visibilityState==="visible"&&awake&&!wl&&"wakeLock" in navigator)acquire()});
 
 load();list();
 </script>
