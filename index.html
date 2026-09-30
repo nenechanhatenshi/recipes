@@ -101,7 +101,7 @@ function renderRes(){
 
 function list(){
   fab.classList.remove("hide");
-  var h='<div class="hd"><h1>マイレシピ🍎</h1><div style="position:relative"><button class="btn g" id="mn" aria-label="メニュー">☰</button><div class="menu hide" id="menu"><button id="imp">📋 貼り付けて追加</button><button id="tpl">🤖 AI用テンプレートをコピー</button><button id="ai">🧠 AI共有用にコピー</button><button id="exp">💾 データバックアップ</button><button id="rst">📥 バックアップから復元</button><button id="tgm">🏷 タグ管理</button><button id="upd">🔄 最新版に更新</button><div class="cs" style="padding:6px 12px 2px">'+VER+'</div></div></div></div><input id="q" placeholder="タイトル・材料で検索" value="'+esc(q)+'">';
+  var h='<div class="hd"><h1>マイレシピ🍎</h1><div style="position:relative"><button class="btn g" id="mn" aria-label="メニュー">☰</button><div class="menu hide" id="menu"><button id="imp">📋 貼り付けて追加</button><button id="tpl">🤖 AI用テンプレートをコピー</button><button id="ai">🧠 AI共有用にコピー</button><button id="exp">💾 データバックアップ</button><button id="rst">📥 バックアップから復元</button><button id="tgm">🏷 タグ管理</button><button id="hlp">👼🏻 ヘルプ</button><button id="upd">🔄 最新版に更新</button><div class="cs" style="padding:6px 12px 2px">'+VER+'</div></div></div></div><input id="q" placeholder="タイトル・材料で検索" value="'+esc(q)+'">';
   h+='<div class="chips scr"><button class="chip'+(ftag?'':' on')+'" data-f="">すべて</button>';
   TAGS.forEach(function(t){h+='<button class="chip'+(ftag===t?' on':'')+'" data-f="'+t+'">'+t+'</button>'});
   h+='</div>';
@@ -113,6 +113,7 @@ function list(){
   document.getElementById("exp").onclick=function(){mn.classList.add("hide");exportData()};
   document.getElementById("rst").onclick=function(){mn.classList.add("hide");pickBackup()};
   document.getElementById("upd").onclick=function(){mn.classList.add("hide");updateApp()};
+  document.getElementById("hlp").onclick=function(){mn.classList.add("hide");helpScreen()};
   document.getElementById("ai").onclick=function(){mn.classList.add("hide");copyForAI()};
   document.getElementById("tgm").onclick=tagMgr;
   document.getElementById("tpl").onclick=function(){mn.classList.add("hide");copyText(TPL,"テンプレートをコピーしました。AIに貼り付けて、続けてレシピを送ってください。")};
@@ -250,13 +251,44 @@ function restoreFile(file){
       if(save()){alert(n+"件を復元しました（すでにあるレシピはそのままです）");list()}
     }catch(e){alert("このファイルは読み込めませんでした")}};
   rd.readAsText(file)}
-var VER="v2026.09.30-3";
+var VER="v2026.09.30-5";
 function copyForAI(){
   var out=JSON.stringify(recipes.map(function(r){var c={};for(var k in r)if(k!=="img")c[k]=r[k];return c}));
   copyText(out,"コピーしました（"+recipes.length+"件・画像なし）。AIに貼り付けてください。")}
 function updateApp(){
   if(navigator.onLine===false){alert("ネットにつながっていません");return}
   fetch(location.href.split("#")[0],{cache:"reload"}).then(function(){location.reload()}).catch(function(){alert("更新できませんでした。ネットの状態を確認してください")})}
+var HISTORY=[
+ {v:"v2026.09.30-5",t:["ヘルプのアイコンを👼🏻に変更"]},
+ {v:"v2026.09.30-4",t:["ヘルプを追加（レシピの内訳・メニューの使い方・更新履歴）"]},
+ {v:"v2026.09.30-3",t:["🧠 AI共有用にコピー（画像なし）を追加"]},
+ {v:"v2026.09.30-2",t:["🔄 最新版に更新を追加","メニューにバージョン表示を追加"]},
+ {v:"v2026.09.30-1 以前",t:["💾 データバックアップ（画像込み）と 📥 復元を追加","保存先を大容量の場所（IndexedDB）に変更し、画像で容量オーバーになる問題を解消","検索バーで日本語入力が重複する不具合を修正","タグの絞り込みを横スクロールに変更","レシピ画面に「画面を暗くしない」スイッチを追加","🤖 AIレシピ用テンプレート、📋 貼り付けて追加、🏷 タグ管理を追加","作り方の【見出し】を番号の対象から外す表示に変更","紫と水色のデザイン、調理時間欄を追加","基本機能（画像・タイトル・サブタイトル・タグ・材料・作り方・参考URL・メモ）"]}
+];
+var MENU_HELP=[
+ ["📋 貼り付けて追加","レシピの文章を貼ると、項目に自動で振り分けます"],
+ ["🤖 AI用テンプレートをコピー","AIにレシピを整理してもらうための指示文をコピーします"],
+ ["🧠 AI共有用にコピー","全レシピの文章を、画像なしでコピーします（AIに相談用）"],
+ ["💾 データバックアップ","画像を含めて、ファイルに保存します"],
+ ["📥 バックアップから復元","保存したファイルを読み込みます（今あるレシピは消えません）"],
+ ["🏷 タグ管理","タグの追加・名前の変更・削除ができます"],
+ ["👼🏻 ヘルプ","この画面です"],
+ ["🔄 最新版に更新","アプリを最新の状態に取り直します"]
+];
+function helpScreen(){
+  fab.classList.add("hide");window.scrollTo(0,0);
+  var img=recipes.filter(function(r){return r.img}).length,none=recipes.filter(function(r){return !r.tags.length}).length;
+  var h='<div class="row" style="margin:0 0 12px"><button class="btn g" id="back">← 戻る</button></div><h1>ヘルプ</h1><div class="cs">バージョン '+VER+'</div>'
+  +'<h3>レシピの状況</h3><div>全部で <b>'+recipes.length+'件</b>（画像あり '+img+'件）</div><div style="margin-top:6px">';
+  TAGS.forEach(function(t){
+    var n=recipes.filter(function(r){return r.tags.indexOf(t)>=0}).length;
+    h+='<div class="tr"><span class="tag" style="font-size:14px;padding:4px 12px;margin:0">'+esc(t)+'</span><span style="flex:1"></span><b>'+n+'件</b></div>'});
+  if(none)h+='<div class="tr"><span class="cs">タグなし</span><span style="flex:1"></span><b>'+none+'件</b></div>';
+  h+='</div><div class="cs" style="margin-top:6px">タグを複数つけたレシピは、それぞれに数えます。</div>'
+  +'<h3>メニューの使い方</h3><ul class="ig">'+MENU_HELP.map(function(m){return '<li><b>'+m[0]+'</b><br><span class="cs">'+m[1]+'</span></li>'}).join('')+'</ul>'
+  +'<h3>更新履歴</h3>'+HISTORY.map(function(x){return '<div style="font-weight:700;margin:12px 0 2px">'+x.v+'</div><ul class="ig">'+x.t.map(function(i){return '<li>'+esc(i)+'</li>'}).join('')+'</ul>'}).join('');
+  app.innerHTML=h;
+  document.getElementById("back").onclick=list}
 function pickBackup(){
   var i=document.createElement("input");i.type="file";i.accept=".json,application/json";
   i.onchange=function(){if(i.files&&i.files[0])restoreFile(i.files[0])};i.click()}
