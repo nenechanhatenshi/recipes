@@ -44,6 +44,10 @@ h3{font-size:15px;margin:22px 0 6px;color:var(--ac);border-left:4px solid var(--
 a{color:var(--ac);word-break:break-all}
 .prev{max-width:100%;max-height:200px;border-radius:10px;margin-top:8px;display:block}
 .hide{display:none}
+.ov{position:fixed;inset:0;z-index:100;background:rgba(30,20,60,.5);display:flex;align-items:center;justify-content:center;padding:20px}
+.md{background:var(--card);color:var(--tx);border-radius:20px;padding:20px;max-width:420px;width:100%;box-shadow:0 10px 30px rgba(0,0,0,.3)}
+input[type=datetime-local]{min-height:44px}
+
 .pk{display:flex;align-items:center;gap:12px;padding:12px 4px;border-bottom:1px dashed var(--bd);cursor:pointer}
 .pk input{width:22px;height:22px;padding:0;flex:none;accent-color:var(--ac)}
 
@@ -138,6 +142,7 @@ function detail(id){
   if(x.url){var ok=/^https?:\/\//i.test(x.url);h+='<h3>参考URL</h3>'+(ok?'<a href="'+esc(x.url)+'" target="_blank" rel="noopener noreferrer">'+esc(x.url)+'</a>':esc(x.url))}
   if(x.memo)h+='<h3>メモ</h3><div class="pre">'+esc(x.memo)+'</div>';
   h+='<div class="row"><button class="btn" id="ed">編集</button><button class="btn d" id="del">削除</button></div>';
+  h+='<div style="margin-top:28px;font-size:12px;color:#a3a3ad">作成日：'+fmt(x.created)+'　更新日：'+fmt(x.updated)+'</div>';
   app.innerHTML=h;
   document.getElementById("back").onclick=list;bindAwake();
   document.getElementById("ed").onclick=function(){form(x)};
@@ -147,6 +152,8 @@ function detail(id){
 function form(x){
   fab.classList.add("hide");window.scrollTo(0,0);
   x=x||{id:"",title:"",sub:"",time:"",tags:[],ing:"",steps:"",url:"",memo:"",img:""};
+  if(!x.id){x.created=x.created||nowStr();x.updated=x.updated||nowStr()}
+  var origUp=x.updated||"";
   var img=x.img,tags=x.tags.slice();
   var h='<h1>'+(x.id?'レシピを編集':'レシピを追加')+'</h1>'
   +'<label>画像</label><input type="file" id="f" accept="image/*"><img class="prev'+(img?'':' hide')+'" id="pv" src="'+(img||'')+'"><button class="btn g'+(img?'':' hide')+'" id="rm" style="margin-top:8px">画像を外す</button>'
@@ -158,6 +165,8 @@ function form(x){
   +'<label>作り方（1行に1手順）</label><textarea id="st">'+esc(x.steps)+'</textarea>'
   +'<label>参考URL</label><input id="u" type="url" placeholder="https://" value="'+esc(x.url)+'">'
   +'<label>メモ</label><textarea id="m">'+esc(x.memo)+'</textarea>'
+  +'<label>作成日</label><input type="datetime-local" id="cr" max="'+nowStr()+'" value="'+esc(x.created||"")+'">'
+  +'<label>更新日</label><input type="datetime-local" id="up" max="'+nowStr()+'" value="'+esc(x.updated||"")+'"><div class="cs" style="margin-top:4px">更新日をそのままにして保存すると、保存した日時に自動で更新されます。</div>'
   +'<div class="row"><button class="btn" id="ok">保存</button><button class="btn g" id="cx">キャンセル</button></div>';
   app.innerHTML=h;
   var pv=document.getElementById("pv"),rm=document.getElementById("rm");
@@ -175,9 +184,13 @@ function form(x){
   document.getElementById("cx").onclick=function(){x.id?detail(x.id):list()};
   document.getElementById("ok").onclick=function(){
     var t=document.getElementById("t").value.trim();if(!t){alert("タイトルを入力してください");return}
+    var cr=document.getElementById("cr").value,up=document.getElementById("up").value,nw=nowStr();
+    if(cr>nw||up>nw){alert("作成日・更新日は、未来の日時にできません");return}
+    if(cr&&up&&up<cr){alert("更新日が作成日より前になっています");return}
+    if(up===origUp)up=nw;
     var d={id:x.id||String(Date.now()),title:t,sub:document.getElementById("s").value.trim(),time:document.getElementById("tm").value.trim(),tags:tags,
       ing:document.getElementById("i").value,steps:document.getElementById("st").value,
-      url:document.getElementById("u").value.trim(),memo:document.getElementById("m").value,img:img};
+      url:document.getElementById("u").value.trim(),memo:document.getElementById("m").value,img:img,created:cr,updated:up};
     var old=recipes.slice();
     if(x.id)recipes=recipes.map(function(r){return r.id===x.id?d:r});else recipes.unshift(d);
     if(save())detail(d.id);else recipes=old};
@@ -213,17 +226,7 @@ function paste(){
   document.getElementById("go").onclick=function(){
     var v=document.getElementById("pt").value.trim();
     if(!v){alert("貼り付けてください");return}
-    if(v[0]==="["||v[0]==="{"){
-      try{
-        var a=JSON.parse(v);if(!Array.isArray(a))a=a.recipes;
-        var n=0;
-        a.forEach(function(r){
-          if(r&&r.title&&!recipes.some(function(o){return o.id===r.id})){
-            recipes.push({id:r.id||String(Date.now()+n),title:String(r.title),sub:r.sub||"",time:r.time||"",
-              tags:Array.isArray(r.tags)?r.tags.filter(function(t){if(typeof t!=="string")return false;if(TAGS.indexOf(t)<0){TAGS.push(t);saveTags()}return true}):[],
-              ing:r.ing||"",steps:r.steps||"",url:r.url||"",memo:r.memo||"",img:r.img||""});n++}});
-        if(save()){alert(n+"件を追加しました");list()}
-        return}catch(e){}}
+    if(v[0]==="["||v[0]==="{"){var o=null;try{o=JSON.parse(v)}catch(e){}if(o){mergeImport(o);return}}
     form(parseText(v))}}
 
 function exportData(rs){
@@ -237,25 +240,60 @@ function exportData(rs){
     navigator.share({files:[file],title:"マイレシピのバックアップ"}).catch(function(e){if(!e||e.name!=="AbortError")dl()});
     return}
   dl()}
+function nowStr(){var n=new Date(),p=function(v){return ("0"+v).slice(-2)};return n.getFullYear()+"-"+p(n.getMonth()+1)+"-"+p(n.getDate())+"T"+p(n.getHours())+":"+p(n.getMinutes())}
+function fmt(s){return s?s.replace("T"," ").replace(/-/g,"/"):""}
+var seq=0;
+function normRec(r){
+  var dt=function(v){return (typeof v==="string"&&/^\d{4}-\d{2}-\d{2}/.test(v))?v.slice(0,16):""};
+  return {id:r.id?String(r.id):"",title:String(r.title),sub:r.sub||"",time:r.time||"",created:dt(r.created),updated:dt(r.updated),
+    tags:Array.isArray(r.tags)?r.tags.filter(function(t){if(typeof t!=="string")return false;if(TAGS.indexOf(t)<0)TAGS.push(t);return true}):[],
+    ing:r.ing||"",steps:r.steps||"",url:r.url||"",memo:r.memo||"",img:r.img||""}}
+function newId(){var id;do{seq++;id=String(Date.now()+seq)}while(recipes.some(function(e){return e.id===id}));return id}
+function sameTitle(a,b){return a.title.trim()===b.title.trim()}
+function replaceRec(ex,inc){var i=recipes.indexOf(ex);recipes[i]=Object.assign({},inc,{id:ex.id})}
+function askConflict(ex,inc,remain){
+  return new Promise(function(res){
+    var ov=document.createElement("div");ov.className="ov";
+    ov.innerHTML='<div class="md"><div style="font-size:17px;font-weight:700">⚠️ 更新日が違うレシピがあります</div><div style="margin:10px 0 6px;font-weight:700">'+esc(inc.title)+'</div><div class="cs">今のアプリ：更新日 '+(fmt(ex.updated)||"なし")+'</div><div class="cs">バックアップ：更新日 '+(fmt(inc.updated)||"なし")+'</div><div style="margin:14px 0 8px">どちらを残しますか？</div><div style="display:grid;gap:8px"><button class="btn g" id="k1">今のアプリのデータを残す</button><button class="btn" id="k2">バックアップのデータで上書き</button></div>'+(remain>0?'<label class="cs" style="display:flex;gap:8px;align-items:center;margin-top:14px"><input type="checkbox" id="k3" style="width:20px;height:20px;padding:0;flex:none">残りの'+remain+'件も同じ選択にする</label>':'')+'</div>';
+    document.body.appendChild(ov);
+    function done(c){var k=ov.querySelector("#k3");var all=!!(k&&k.checked);ov.remove();res({c:c,all:all})}
+    ov.querySelector("#k1").onclick=function(){done("keep")};
+    ov.querySelector("#k2").onclick=function(){done("over")}})}
+async function mergeImport(o){
+  var a=Array.isArray(o)?o:(o&&o.recipes);
+  if(!Array.isArray(a)){alert("このデータは読み込めませんでした");return}
+  if(o&&Array.isArray(o.tags))o.tags.forEach(function(t){if(typeof t==="string"&&TAGS.indexOf(t)<0)TAGS.push(t)});
+  var items=a.filter(function(x){return x&&x.title}).map(normRec);
+  var st={add:0,over:0,keep:0,same:0},conf=[];
+  items.forEach(function(inc){
+    var ex=inc.id?recipes.find(function(e){return e.id===inc.id}):null;
+    if(ex){
+      if(!ex.updated&&!inc.updated){
+        if(sameTitle(ex,inc)){replaceRec(ex,inc);st.over++}
+        else{inc.id=newId();recipes.push(inc);st.add++}
+      }else if(ex.updated===inc.updated){st.same++}
+      else conf.push({ex:ex,inc:inc});
+    }else{
+      var t=!inc.updated?recipes.find(function(e){return !e.updated&&sameTitle(e,inc)}):null;
+      if(t){replaceRec(t,inc);st.over++}
+      else{if(!inc.id)inc.id=newId();recipes.push(inc);st.add++}
+    }
+  });
+  var all=null;
+  for(var i=0;i<conf.length;i++){
+    var c=conf[i],ch=all;
+    if(!ch){var rs=await askConflict(c.ex,c.inc,conf.length-i-1);ch=rs.c;if(rs.all)all=ch}
+    if(ch==="over"){replaceRec(c.ex,c.inc);st.over++}else st.keep++;
+  }
+  recipes.sort(function(p,q2){return (Number(q2.id)||0)-(Number(p.id)||0)});
+  saveTags();
+  if(save()){alert("取り込みました\n追加 "+st.add+"件／上書き "+st.over+"件／今のを残した "+st.keep+"件／同じ内容 "+st.same+"件");list()}
+}
 function restoreFile(file){
   var rd=new FileReader();
-  rd.onload=function(){
-    try{
-      var o=JSON.parse(rd.result),a=Array.isArray(o)?o:o.recipes;
-      if(!Array.isArray(a))throw 0;
-      if(Array.isArray(o.tags))o.tags.forEach(function(t){if(typeof t==="string"&&TAGS.indexOf(t)<0)TAGS.push(t)});
-      var n=0;
-      a.forEach(function(r){
-        if(r&&r.title&&!recipes.some(function(x){return x.id===r.id})){
-          recipes.push({id:String(r.id||Date.now()+n),title:String(r.title),sub:r.sub||"",time:r.time||"",
-            tags:Array.isArray(r.tags)?r.tags.filter(function(t){if(typeof t!=="string")return false;if(TAGS.indexOf(t)<0)TAGS.push(t);return true}):[],
-            ing:r.ing||"",steps:r.steps||"",url:r.url||"",memo:r.memo||"",img:r.img||""});n++}});
-      recipes.sort(function(p,q2){return (Number(q2.id)||0)-(Number(p.id)||0)});
-      saveTags();
-      if(save()){alert(n+"件を復元しました（すでにあるレシピはそのままです）");list()}
-    }catch(e){alert("このファイルは読み込めませんでした")}};
+  rd.onload=function(){var o=null;try{o=JSON.parse(rd.result)}catch(e){}if(!o){alert("このファイルは読み込めませんでした");return}mergeImport(o)};
   rd.readAsText(file)}
-var VER="v2026.09.30-6";
+var VER="v2026.09.30-7";
 function copyForAI(){
   var out=JSON.stringify(recipes.map(function(r){var c={};for(var k in r)if(k!=="img")c[k]=r[k];return c}));
   copyText(out,"コピーしました（"+recipes.length+"件・画像なし）。AIに貼り付けてください。")}
@@ -263,6 +301,7 @@ function updateApp(){
   if(navigator.onLine===false){alert("ネットにつながっていません");return}
   fetch(location.href.split("#")[0],{cache:"reload"}).then(function(){location.reload()}).catch(function(){alert("更新できませんでした。ネットの状態を確認してください")})}
 var HISTORY=[
+ {v:"v2026.09.30-7",t:["レシピに作成日・更新日を追加（編集可、未来日と逆転は不可）","復元時に更新日を比較し、違うレシピはどちらを残すか確認","日付のないレシピは、タイトルが同じなら自動で上書き","レシピ画面の一番下に作成日・更新日を表示"]},
  {v:"v2026.09.30-6",t:["データバックアップで、全体／一部選択を選べるように変更"]},
  {v:"v2026.09.30-5",t:["ヘルプのアイコンを👼🏻に変更"]},
  {v:"v2026.09.30-4",t:["ヘルプを追加（レシピの内訳・メニューの使い方・更新履歴）"]},
@@ -275,7 +314,7 @@ var MENU_HELP=[
  ["🤖 AI用テンプレートをコピー","AIにレシピを整理してもらうための指示文をコピーします"],
  ["🧠 AI共有用にコピー","全レシピの文章を、画像なしでコピーします（AIに相談用）"],
  ["💾 データバックアップ","全体、または選んだレシピを、画像ごとファイルに保存します"],
- ["📥 バックアップから復元","保存したファイルを読み込みます（今あるレシピは消えません）"],
+ ["📥 バックアップから復元","保存したファイルを読み込みます（更新日が違うレシピは、どちらを残すか確認します）"],
  ["🏷 タグ管理","タグの追加・名前の変更・削除ができます"],
  ["👼🏻 ヘルプ","この画面です"],
  ["🔄 最新版に更新","アプリを最新の状態に取り直します"]
