@@ -101,7 +101,7 @@ function renderRes(){
 
 function list(){
   fab.classList.remove("hide");
-  var h='<div class="hd"><h1>マイレシピ🍎</h1><div style="position:relative"><button class="btn g" id="mn" aria-label="メニュー">☰</button><div class="menu hide" id="menu"><button id="imp">📋 貼り付けて追加</button><button id="tpl">🤖 AI用テンプレートをコピー</button><button id="exp">💾 データバックアップ</button><button id="rst">📥 バックアップから復元</button><button id="tgm">🏷 タグ管理</button><button id="upd">🔄 最新版に更新</button><div class="cs" style="padding:6px 12px 2px">'+VER+'</div></div></div></div><input id="q" placeholder="タイトル・材料で検索" value="'+esc(q)+'">';
+  var h='<div class="hd"><h1>マイレシピ🍎</h1><div style="position:relative"><button class="btn g" id="mn" aria-label="メニュー">☰</button><div class="menu hide" id="menu"><button id="imp">📋 貼り付けて追加</button><button id="tpl">🤖 AI用テンプレートをコピー</button><button id="ai">🧠 AI共有用にコピー</button><button id="exp">💾 データバックアップ</button><button id="rst">📥 バックアップから復元</button><button id="tgm">🏷 タグ管理</button><button id="upd">🔄 最新版に更新</button><div class="cs" style="padding:6px 12px 2px">'+VER+'</div></div></div></div><input id="q" placeholder="タイトル・材料で検索" value="'+esc(q)+'">';
   h+='<div class="chips scr"><button class="chip'+(ftag?'':' on')+'" data-f="">すべて</button>';
   TAGS.forEach(function(t){h+='<button class="chip'+(ftag===t?' on':'')+'" data-f="'+t+'">'+t+'</button>'});
   h+='</div>';
@@ -113,6 +113,7 @@ function list(){
   document.getElementById("exp").onclick=function(){mn.classList.add("hide");exportData()};
   document.getElementById("rst").onclick=function(){mn.classList.add("hide");pickBackup()};
   document.getElementById("upd").onclick=function(){mn.classList.add("hide");updateApp()};
+  document.getElementById("ai").onclick=function(){mn.classList.add("hide");copyForAI()};
   document.getElementById("tgm").onclick=tagMgr;
   document.getElementById("tpl").onclick=function(){mn.classList.add("hide");copyText(TPL,"テンプレートをコピーしました。AIに貼り付けて、続けてレシピを送ってください。")};
   app.onclick=function(e){if(!e.target.closest("#mn,#menu"))mn.classList.add("hide")};
@@ -249,7 +250,10 @@ function restoreFile(file){
       if(save()){alert(n+"件を復元しました（すでにあるレシピはそのままです）");list()}
     }catch(e){alert("このファイルは読み込めませんでした")}};
   rd.readAsText(file)}
-var VER="v2026.09.30-2";
+var VER="v2026.09.30-3";
+function copyForAI(){
+  var out=JSON.stringify(recipes.map(function(r){var c={};for(var k in r)if(k!=="img")c[k]=r[k];return c}));
+  copyText(out,"コピーしました（"+recipes.length+"件・画像なし）。AIに貼り付けてください。")}
 function updateApp(){
   if(navigator.onLine===false){alert("ネットにつながっていません");return}
   fetch(location.href.split("#")[0],{cache:"reload"}).then(function(){location.reload()}).catch(function(){alert("更新できませんでした。ネットの状態を確認してください")})}
