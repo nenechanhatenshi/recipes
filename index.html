@@ -44,6 +44,9 @@ h3{font-size:15px;margin:22px 0 6px;color:var(--ac);border-left:4px solid var(--
 a{color:var(--ac);word-break:break-all}
 .prev{max-width:100%;max-height:200px;border-radius:10px;margin-top:8px;display:block}
 .hide{display:none}
+.pk{display:flex;align-items:center;gap:12px;padding:12px 4px;border-bottom:1px dashed var(--bd);cursor:pointer}
+.pk input{width:22px;height:22px;padding:0;flex:none;accent-color:var(--ac)}
+
 .sh{font-weight:700;color:var(--ac);margin:16px 0 6px}
 .ig li.sh{border:0;padding:12px 0 2px}
 .stp{display:flex;gap:10px;margin-bottom:8px}
@@ -110,7 +113,7 @@ function list(){
   var mn=document.getElementById("menu");
   document.getElementById("mn").onclick=function(){mn.classList.toggle("hide")};
   document.getElementById("imp").onclick=paste;
-  document.getElementById("exp").onclick=function(){mn.classList.add("hide");exportData()};
+  document.getElementById("exp").onclick=function(){mn.classList.add("hide");backupScreen()};
   document.getElementById("rst").onclick=function(){mn.classList.add("hide");pickBackup()};
   document.getElementById("upd").onclick=function(){mn.classList.add("hide");updateApp()};
   document.getElementById("hlp").onclick=function(){mn.classList.add("hide");helpScreen()};
@@ -223,10 +226,11 @@ function paste(){
         return}catch(e){}}
     form(parseText(v))}}
 
-function exportData(){
+function exportData(rs){
+  var part=!!rs;rs=rs||recipes;
   var d=new Date(),p=function(n){return ("0"+n).slice(-2)};
-  var name="recipes-backup-"+d.getFullYear()+p(d.getMonth()+1)+p(d.getDate())+".json";
-  var json=JSON.stringify({app:"recipe-book",version:1,date:d.toISOString(),tags:TAGS,recipes:recipes});
+  var name="recipes-backup-"+(part?"part-":"")+d.getFullYear()+p(d.getMonth()+1)+p(d.getDate())+".json";
+  var json=JSON.stringify({app:"recipe-book",version:1,date:d.toISOString(),tags:TAGS,recipes:rs});
   var file=null;try{file=new File([json],name,{type:"application/json"})}catch(e){}
   function dl(){var u=URL.createObjectURL(new Blob([json],{type:"application/json"}));var a=document.createElement("a");a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(u)},4000)}
   if(file&&navigator.canShare&&navigator.canShare({files:[file]})){
@@ -251,7 +255,7 @@ function restoreFile(file){
       if(save()){alert(n+"件を復元しました（すでにあるレシピはそのままです）");list()}
     }catch(e){alert("このファイルは読み込めませんでした")}};
   rd.readAsText(file)}
-var VER="v2026.09.30-5";
+var VER="v2026.09.30-6";
 function copyForAI(){
   var out=JSON.stringify(recipes.map(function(r){var c={};for(var k in r)if(k!=="img")c[k]=r[k];return c}));
   copyText(out,"コピーしました（"+recipes.length+"件・画像なし）。AIに貼り付けてください。")}
@@ -259,6 +263,7 @@ function updateApp(){
   if(navigator.onLine===false){alert("ネットにつながっていません");return}
   fetch(location.href.split("#")[0],{cache:"reload"}).then(function(){location.reload()}).catch(function(){alert("更新できませんでした。ネットの状態を確認してください")})}
 var HISTORY=[
+ {v:"v2026.09.30-6",t:["データバックアップで、全体／一部選択を選べるように変更"]},
  {v:"v2026.09.30-5",t:["ヘルプのアイコンを👼🏻に変更"]},
  {v:"v2026.09.30-4",t:["ヘルプを追加（レシピの内訳・メニューの使い方・更新履歴）"]},
  {v:"v2026.09.30-3",t:["🧠 AI共有用にコピー（画像なし）を追加"]},
@@ -269,7 +274,7 @@ var MENU_HELP=[
  ["📋 貼り付けて追加","レシピの文章を貼ると、項目に自動で振り分けます"],
  ["🤖 AI用テンプレートをコピー","AIにレシピを整理してもらうための指示文をコピーします"],
  ["🧠 AI共有用にコピー","全レシピの文章を、画像なしでコピーします（AIに相談用）"],
- ["💾 データバックアップ","画像を含めて、ファイルに保存します"],
+ ["💾 データバックアップ","全体、または選んだレシピを、画像ごとファイルに保存します"],
  ["📥 バックアップから復元","保存したファイルを読み込みます（今あるレシピは消えません）"],
  ["🏷 タグ管理","タグの追加・名前の変更・削除ができます"],
  ["👼🏻 ヘルプ","この画面です"],
@@ -289,6 +294,28 @@ function helpScreen(){
   +'<h3>更新履歴</h3>'+HISTORY.map(function(x){return '<div style="font-weight:700;margin:12px 0 2px">'+x.v+'</div><ul class="ig">'+x.t.map(function(i){return '<li>'+esc(i)+'</li>'}).join('')+'</ul>'}).join('');
   app.innerHTML=h;
   document.getElementById("back").onclick=list}
+function backupScreen(){
+  fab.classList.add("hide");window.scrollTo(0,0);
+  app.innerHTML='<div class="row" style="margin:0 0 12px"><button class="btn g" id="back">← 戻る</button></div><h1>データバックアップ</h1>'
+  +'<div class="cs">画像も含めて、ファイルに保存します。</div>'
+  +'<div style="display:grid;gap:12px;margin-top:18px"><button class="btn" id="bkall" style="padding:16px">全体をバックアップ（'+recipes.length+'件）</button><button class="btn g" id="bkpart" style="padding:16px">一部を選んでバックアップ</button></div>';
+  document.getElementById("back").onclick=list;
+  document.getElementById("bkall").onclick=function(){if(!recipes.length){alert("レシピがありません");return}exportData()};
+  document.getElementById("bkpart").onclick=function(){if(!recipes.length){alert("レシピがありません");return}pickScreen()}}
+function pickScreen(){
+  fab.classList.add("hide");window.scrollTo(0,0);
+  app.innerHTML='<div class="row" style="margin:0 0 12px"><button class="btn g" id="back">← 戻る</button></div><h1>一部を選ぶ</h1>'
+  +'<div class="row" style="margin:0 0 8px"><button class="btn g" id="all">すべて選択</button><button class="btn" id="go">バックアップ（0件）</button></div>'
+  +recipes.map(function(r){return '<label class="pk"><input type="checkbox" data-id="'+esc(r.id)+'"><span style="flex:1"><b>'+esc(r.title)+'</b><br><span class="cs">'+esc((r.tags||[]).join("・"))+(r.time?' ・'+esc(r.time):'')+'</span></span></label>'}).join('');
+  var boxes=app.querySelectorAll("input[data-id]"),all=document.getElementById("all"),go=document.getElementById("go");
+  function upd(){var n=0;boxes.forEach(function(b){if(b.checked)n++});go.textContent="バックアップ（"+n+"件）";all.textContent=(n>0&&n===boxes.length)?"すべて解除":"すべて選択"}
+  boxes.forEach(function(b){b.onchange=upd});
+  all.onclick=function(){var on=all.textContent!=="すべて解除";boxes.forEach(function(b){b.checked=on});upd()};
+  go.onclick=function(){
+    var ids=[];boxes.forEach(function(b){if(b.checked)ids.push(b.dataset.id)});
+    if(!ids.length){alert("バックアップするレシピを選んでください");return}
+    exportData(recipes.filter(function(r){return ids.indexOf(r.id)>=0}))};
+  document.getElementById("back").onclick=backupScreen}
 function pickBackup(){
   var i=document.createElement("input");i.type="file";i.accept=".json,application/json";
   i.onchange=function(){if(i.files&&i.files[0])restoreFile(i.files[0])};i.click()}
