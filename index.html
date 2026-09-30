@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="マイレシピ">
-<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="apple-touch-icon" id="ati" href="apple-touch-icon.png">
 <title>マイレシピ🍎</title>
 <style>
 :root{--bg:#f5f1ff;--card:#fff;--tx:#3f3560;--sub:#8b84ac;--ac:#9b7fe8;--ac2:#7cc8f2;--bd:#e0d9f7;--chip:#e6f4fd;
@@ -44,6 +44,9 @@ h3{font-size:15px;margin:22px 0 6px;color:var(--ac);border-left:4px solid var(--
 a{color:var(--ac);word-break:break-all}
 .prev{max-width:100%;max-height:200px;border-radius:10px;margin-top:8px;display:block}
 .hide{display:none}
+.hdr{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--bg);margin:0 -16px;padding:6px 16px 4px;transition:transform .25s ease}
+.hdr.off{transform:translateY(calc(-100% - env(safe-area-inset-top,0px) - 12px))}
+
 .ov{position:fixed;inset:0;z-index:100;background:rgba(30,20,60,.5);display:flex;align-items:center;justify-content:center;padding:20px}
 .md{background:var(--card);color:var(--tx);border-radius:20px;padding:20px;max-width:420px;width:100%;box-shadow:0 10px 30px rgba(0,0,0,.3)}
 input[type=datetime-local]{min-height:44px}
@@ -108,12 +111,12 @@ function renderRes(){
 
 function list(){
   fab.classList.remove("hide");
-  var h='<div class="hd"><h1>マイレシピ🍎</h1><div style="position:relative"><button class="btn g" id="mn" aria-label="メニュー">☰</button><div class="menu hide" id="menu"><button id="imp">📋 貼り付けて追加</button><button id="tpl">🤖 AI用テンプレートをコピー</button><button id="ai">🧠 AI共有用にコピー</button><button id="exp">💾 データバックアップ</button><button id="rst">📥 バックアップから復元</button><button id="tgm">🏷 タグ管理</button><button id="hlp">👼🏻 ヘルプ</button><button id="upd">🔄 最新版に更新</button><div class="cs" style="padding:6px 12px 2px">'+VER+'</div></div></div></div><input id="q" placeholder="タイトル・材料で検索" value="'+esc(q)+'">';
+  var h='<div id="hdr" class="hdr"><div class="hd"><h1>マイレシピ<span id="lg">🍎</span></h1><div style="position:relative"><button class="btn g" id="mn" aria-label="メニュー">☰</button><div class="menu hide" id="menu"><button id="imp">📋 貼り付けて追加</button><button id="tpl">🤖 AI用テンプレートをコピー</button><button id="ai">🧠 AI共有用にコピー</button><button id="exp">💾 データバックアップ</button><button id="rst">📥 バックアップから復元</button><button id="tgm">🏷 タグ管理</button><button id="set">⚙️ 設定</button><button id="hlp">👼🏻 ヘルプ</button><button id="upd">🔄 最新版に更新</button><div class="cs" style="padding:6px 12px 2px">'+VER+'</div></div></div></div><input id="q" placeholder="タイトル・材料で検索" value="'+esc(q)+'">';
   h+='<div class="chips scr"><button class="chip'+(ftag?'':' on')+'" data-f="">すべて</button>';
   TAGS.forEach(function(t){h+='<button class="chip'+(ftag===t?' on':'')+'" data-f="'+t+'">'+t+'</button>'});
   h+='</div>';
-  h+='<div id="res"></div>';
-  app.innerHTML=h;renderRes();
+  h+='</div><div id="res"></div>';
+  app.innerHTML=h;setLogo();renderRes();
   var mn=document.getElementById("menu");
   document.getElementById("mn").onclick=function(){mn.classList.toggle("hide")};
   document.getElementById("imp").onclick=paste;
@@ -121,6 +124,7 @@ function list(){
   document.getElementById("rst").onclick=function(){mn.classList.add("hide");pickBackup()};
   document.getElementById("upd").onclick=function(){mn.classList.add("hide");updateApp()};
   document.getElementById("hlp").onclick=function(){mn.classList.add("hide");helpScreen()};
+  document.getElementById("set").onclick=function(){mn.classList.add("hide");settingsScreen()};
   document.getElementById("ai").onclick=function(){mn.classList.add("hide");copyForAI()};
   document.getElementById("tgm").onclick=tagMgr;
   document.getElementById("tpl").onclick=function(){mn.classList.add("hide");copyText(TPL,"テンプレートをコピーしました。AIに貼り付けて、続けてレシピを送ってください。")};
@@ -133,7 +137,7 @@ function list(){
 function detail(id){
   var x=recipes.find(function(r){return r.id===id});if(!x)return list();
   fab.classList.add("hide");window.scrollTo(0,0);
-  var h='<div class="row" style="margin:0 0 12px;justify-content:space-between;align-items:center;flex-wrap:nowrap"><button class="btn g" id="back">← 戻る</button><div class="mrow" style="border:0;margin:0;padding:0;gap:10px"><span>☀️ 画面を暗くしない</span><label class="sw"><input type="checkbox" id="aw"><span class="sl"></span></label></div></div>';
+  var h='<div id="hdr" class="row hdr" style="margin:0 -16px 12px;padding:6px 16px;justify-content:space-between;align-items:center;flex-wrap:nowrap"><button class="btn g" id="back">← 戻る</button><div class="mrow" style="border:0;margin:0;padding:0;gap:10px"><span>☀️ 画面を暗くしない</span><label class="sw"><input type="checkbox" id="aw"><span class="sl"></span></label></div></div>';
   if(x.img)h+='<img class="hero" src="'+x.img+'" alt="">';
   h+='<h1 style="margin-bottom:0">'+esc(x.title)+'</h1><div class="cs">'+esc(x.sub)+'</div>'+(x.time?'<div class="cs">⏱ 調理時間：'+esc(x.time)+'</div>':'')+x.tags.map(function(t){return '<span class="tag">'+t+'</span>'}).join('');
   var ing=x.ing.split("\n").filter(Boolean),st=x.steps.split("\n").filter(Boolean);
@@ -293,7 +297,7 @@ function restoreFile(file){
   var rd=new FileReader();
   rd.onload=function(){var o=null;try{o=JSON.parse(rd.result)}catch(e){}if(!o){alert("このファイルは読み込めませんでした");return}mergeImport(o)};
   rd.readAsText(file)}
-var VER="v2026.09.30-7";
+var VER="v2026.09.30-8";
 function copyForAI(){
   var out=JSON.stringify(recipes.map(function(r){var c={};for(var k in r)if(k!=="img")c[k]=r[k];return c}));
   copyText(out,"コピーしました（"+recipes.length+"件・画像なし）。AIに貼り付けてください。")}
@@ -301,6 +305,7 @@ function updateApp(){
   if(navigator.onLine===false){alert("ネットにつながっていません");return}
   fetch(location.href.split("#")[0],{cache:"reload"}).then(function(){location.reload()}).catch(function(){alert("更新できませんでした。ネットの状態を確認してください")})}
 var HISTORY=[
+ {v:"v2026.09.30-8",t:["スクロールで上部（タイトル・検索・タグ／戻るボタン）が隠れ、上に戻すと出る動きに変更","⚙️ 設定を追加（ライト／ダーク切り替え、アイコン選択）","ダークのときのりんごデビルを追加"]},
  {v:"v2026.09.30-7",t:["レシピに作成日・更新日を追加（編集可、未来日と逆転は不可）","復元時に更新日を比較し、違うレシピはどちらを残すか確認","日付のないレシピは、タイトルが同じなら自動で上書き","レシピ画面の一番下に作成日・更新日を表示"]},
  {v:"v2026.09.30-6",t:["データバックアップで、全体／一部選択を選べるように変更"]},
  {v:"v2026.09.30-5",t:["ヘルプのアイコンを👼🏻に変更"]},
@@ -316,6 +321,7 @@ var MENU_HELP=[
  ["💾 データバックアップ","全体、または選んだレシピを、画像ごとファイルに保存します"],
  ["📥 バックアップから復元","保存したファイルを読み込みます（更新日が違うレシピは、どちらを残すか確認します）"],
  ["🏷 タグ管理","タグの追加・名前の変更・削除ができます"],
+ ["⚙️ 設定","画面の色（ライト／ダーク）とアイコンを変えます"],
  ["👼🏻 ヘルプ","この画面です"],
  ["🔄 最新版に更新","アプリを最新の状態に取り直します"]
 ];
@@ -355,6 +361,37 @@ function pickScreen(){
     if(!ids.length){alert("バックアップするレシピを選んでください");return}
     exportData(recipes.filter(function(r){return ids.indexOf(r.id)>=0}))};
   document.getElementById("back").onclick=backupScreen}
+var DEVIL="data:image/png;base64,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";
+function getPref(k,d){try{return localStorage.getItem(k)||d}catch(e){return d}}
+function setPref(k,v){try{localStorage.setItem(k,v)}catch(e){}}
+function isDark(){var t=getPref("theme-v1","auto");return t==="dark"||(t==="auto"&&!!window.matchMedia&&matchMedia("(prefers-color-scheme: dark)").matches)}
+function devil(){var i=getPref("icon-v1","auto");return i==="devil"||(i==="auto"&&isDark())}
+function setLogo(){var l=document.getElementById("lg");if(!l)return;l.innerHTML=devil()?'<img src="'+DEVIL+'" alt="" style="height:1em;vertical-align:-.12em;margin-left:2px">':"🍎"}
+function applyTheme(){
+  var t=getPref("theme-v1","auto"),el=document.documentElement;
+  if(t==="auto")el.removeAttribute("data-theme");else el.setAttribute("data-theme",t);
+  var a=document.getElementById("ati");if(a)a.setAttribute("href",devil()?"apple-touch-icon-devil.png":"apple-touch-icon.png");
+  setLogo()}
+try{matchMedia("(prefers-color-scheme: dark)").addEventListener("change",applyTheme)}catch(e){}
+(function(){var last=0,tm;
+  window.addEventListener("scroll",function(){
+    var h=document.getElementById("hdr");if(!h)return;
+    var y=window.pageYOffset,d=y-last;last=y;
+    if(y<=4){h.classList.remove("off");clearTimeout(tm);return}
+    if(y>=document.documentElement.scrollHeight-window.innerHeight-2)return;
+    if(d>3)h.classList.add("off");else if(d<-3)h.classList.remove("off");
+    clearTimeout(tm);tm=setTimeout(function(){if(window.pageYOffset>4)h.classList.add("off")},800)},{passive:true})})();
+function settingsScreen(){
+  fab.classList.add("hide");window.scrollTo(0,0);
+  var th=getPref("theme-v1","auto"),ic=getPref("icon-v1","auto");
+  function chips(key,cur,opts){return '<div class="chips" data-k="'+key+'">'+opts.map(function(o){return '<button class="chip'+(cur===o[0]?' on':'')+'" data-v="'+o[0]+'">'+o[1]+'</button>'}).join('')+'</div>'}
+  app.innerHTML='<div class="row" style="margin:0 0 12px"><button class="btn g" id="back">← 戻る</button></div><h1>設定</h1>'
+  +'<h3>画面の色</h3>'+chips("theme-v1",th,[["auto","端末に合わせる"],["light","ライト"],["dark","ダーク"]])
+  +'<h3>アプリのアイコン</h3>'+chips("icon-v1",ic,[["auto","テーマに合わせる"],["normal","🍎 通常"],["devil","😈 りんごデビル"]])
+  +'<div class="cs">「テーマに合わせる」は、ダークのときだけりんごデビルになります。画面のタイトルの絵は、すぐ変わります。</div>'
+  +'<div class="cs" style="margin-top:12px">⚠️ ホーム画面のアイコンは、ホーム画面に追加したときに決まり、あとから自動では変わりません。変えたい場合は、先にバックアップを取ってから、今のアイコンを削除して、もう一度「ホーム画面に追加」してください（削除すると、アプリの中のレシピも消えます）。追加の時点で選んでいるアイコンが使われますが、iPhoneの仕様上、確実に切り替わるとは限りません。</div>';
+  document.getElementById("back").onclick=list;
+  app.querySelectorAll(".chips[data-k]").forEach(function(g){g.querySelectorAll(".chip").forEach(function(b){b.onclick=function(){setPref(g.dataset.k,b.dataset.v);applyTheme();settingsScreen()}})})}
 function pickBackup(){
   var i=document.createElement("input");i.type="file";i.accept=".json,application/json";
   i.onchange=function(){if(i.files&&i.files[0])restoreFile(i.files[0])};i.click()}
@@ -410,6 +447,7 @@ function copyText(t,msg){
 function isHead(l){return /^【.*】$/.test(l.trim())}
 function unnum(l){return l.trim().replace(/^(?:\d+[.．)）、]|[①-⑳])\s*/,"")}
 
+applyTheme();
 idbOpen().then(function(d){
   idb=d;load();
   if(!idb){list();return}
