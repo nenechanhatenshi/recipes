@@ -75,7 +75,13 @@ a{color:var(--ac);word-break:break-all}
 var TAGS=["お弁当","晩御飯","副菜"],KEY="recipes-v1",recipes=[],q="",ftag="";
 function load(){try{recipes=JSON.parse(localStorage.getItem(KEY)||"[]")}catch(e){recipes=[]}
   try{var t=JSON.parse(localStorage.getItem("tags-v1")||"null");if(Array.isArray(t))TAGS=t}catch(e){}}
-function save(){try{localStorage.setItem(KEY,JSON.stringify(recipes));return true}catch(e){alert("保存できませんでした（容量オーバーの可能性）。画像を小さくしてみてください。");return false}}
+var idb=null;
+function idbOpen(){return new Promise(function(res){try{var rq=indexedDB.open("recipebook",1);rq.onupgradeneeded=function(){rq.result.createObjectStore("kv")};rq.onsuccess=function(){res(rq.result)};rq.onerror=function(){res(null)};rq.onblocked=function(){res(null)}}catch(e){res(null)}})}
+function idbGet(k){return new Promise(function(res){try{var r=idb.transaction("kv").objectStore("kv").get(k);r.onsuccess=function(){res(r.result)};r.onerror=function(){res(null)}}catch(e){res(null)}})}
+function idbSet(k,v){return new Promise(function(res){try{var t=idb.transaction("kv","readwrite");t.objectStore("kv").put(v,k);t.oncomplete=function(){res(true)};t.onerror=t.onabort=function(){res(false)}}catch(e){res(false)}})}
+function save(){
+  if(idb){idbSet("recipes",recipes).then(function(ok){if(!ok)alert("保存できませんでした。")});return true}
+  try{localStorage.setItem(KEY,JSON.stringify(recipes));return true}catch(e){alert("保存できませんでした（容量オーバーの可能性）。画像を小さくしてみてください。");return false}}
 function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]})}
 var app=document.getElementById("app"),fab=document.getElementById("fab");
 fab.onclick=function(){form()};
@@ -95,7 +101,7 @@ function renderRes(){
 
 function list(){
   fab.classList.remove("hide");
-  var h='<div class="hd"><h1>マイレシピ🍎</h1><div style="position:relative"><button class="btn g" id="mn" aria-label="メニュー">☰</button><div class="menu hide" id="menu"><button id="imp">📋 貼り付けて追加</button><button id="tpl">🤖 AI用テンプレートをコピー</button><button id="exp">📤 データをコピー</button><button id="tgm">🏷 タグ管理</button></div></div></div><input id="q" placeholder="タイトル・材料で検索" value="'+esc(q)+'">';
+  var h='<div class="hd"><h1>マイレシピ🍎</h1><div style="position:relative"><button class="btn g" id="mn" aria-label="メニュー">☰</button><div class="menu hide" id="menu"><button id="imp">📋 貼り付けて追加</button><button id="tpl">🤖 AI用テンプレートをコピー</button><button id="exp">💾 データバックアップ</button><button id="rst">📥 バックアップから復元</button><button id="tgm">🏷 タグ管理</button></div></div></div><input id="q" placeholder="タイトル・材料で検索" value="'+esc(q)+'">';
   h+='<div class="chips scr"><button class="chip'+(ftag?'':' on')+'" data-f="">すべて</button>';
   TAGS.forEach(function(t){h+='<button class="chip'+(ftag===t?' on':'')+'" data-f="'+t+'">'+t+'</button>'});
   h+='</div>';
@@ -105,6 +111,7 @@ function list(){
   document.getElementById("mn").onclick=function(){mn.classList.toggle("hide")};
   document.getElementById("imp").onclick=paste;
   document.getElementById("exp").onclick=function(){mn.classList.add("hide");exportData()};
+  document.getElementById("rst").onclick=function(){mn.classList.add("hide");pickBackup()};
   document.getElementById("tgm").onclick=tagMgr;
   document.getElementById("tpl").onclick=function(){mn.classList.add("hide");copyText(TPL,"テンプレートをコピーしました。AIに貼り付けて、続けてレシピを送ってください。")};
   app.onclick=function(e){if(!e.target.closest("#mn,#menu"))mn.classList.add("hide")};
@@ -193,7 +200,7 @@ function parseText(t){
 
 function paste(){
   fab.classList.add("hide");window.scrollTo(0,0);
-  app.innerHTML='<h1>貼り付けて追加</h1><div class="cs">レシピの文章か、「データをコピー」でコピーしたデータを貼り付けてください。文章のときは、内容を確認してから保存できます。</div>'
+  app.innerHTML='<h1>貼り付けて追加</h1><div class="cs">レシピの文章を貼り付けてください。内容を確認してから保存できます。</div>'
   +'<label>ここに貼り付け</label><textarea id="pt" style="min-height:240px" placeholder="例&#10;タイトル：鶏の照り焼き&#10;調理時間：20分&#10;タグ：お弁当&#10;材料：&#10;鶏もも肉 1枚&#10;作り方：&#10;1. 焼く"></textarea>'
   +'<div class="row"><button class="btn" id="go">取り込む</button><button class="btn g" id="cx">戻る</button></div>';
   document.getElementById("cx").onclick=list;
@@ -214,9 +221,36 @@ function paste(){
     form(parseText(v))}}
 
 function exportData(){
-  var out=JSON.stringify(recipes.map(function(r){var c={};for(var k in r)if(k!=="img")c[k]=r[k];return c}));
-  function fb(){prompt("コピーしてください（画像は含まれません）",out)}
-  try{navigator.clipboard.writeText(out).then(function(){alert("コピーしました（画像は含まれません）")},fb)}catch(e){fb()}}
+  var d=new Date(),p=function(n){return ("0"+n).slice(-2)};
+  var name="recipes-backup-"+d.getFullYear()+p(d.getMonth()+1)+p(d.getDate())+".json";
+  var json=JSON.stringify({app:"recipe-book",version:1,date:d.toISOString(),tags:TAGS,recipes:recipes});
+  var file=null;try{file=new File([json],name,{type:"application/json"})}catch(e){}
+  function dl(){var u=URL.createObjectURL(new Blob([json],{type:"application/json"}));var a=document.createElement("a");a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(u)},4000)}
+  if(file&&navigator.canShare&&navigator.canShare({files:[file]})){
+    navigator.share({files:[file],title:"マイレシピのバックアップ"}).catch(function(e){if(!e||e.name!=="AbortError")dl()});
+    return}
+  dl()}
+function restoreFile(file){
+  var rd=new FileReader();
+  rd.onload=function(){
+    try{
+      var o=JSON.parse(rd.result),a=Array.isArray(o)?o:o.recipes;
+      if(!Array.isArray(a))throw 0;
+      if(Array.isArray(o.tags))o.tags.forEach(function(t){if(typeof t==="string"&&TAGS.indexOf(t)<0)TAGS.push(t)});
+      var n=0;
+      a.forEach(function(r){
+        if(r&&r.title&&!recipes.some(function(x){return x.id===r.id})){
+          recipes.push({id:String(r.id||Date.now()+n),title:String(r.title),sub:r.sub||"",time:r.time||"",
+            tags:Array.isArray(r.tags)?r.tags.filter(function(t){if(typeof t!=="string")return false;if(TAGS.indexOf(t)<0)TAGS.push(t);return true}):[],
+            ing:r.ing||"",steps:r.steps||"",url:r.url||"",memo:r.memo||"",img:r.img||""});n++}});
+      recipes.sort(function(p,q2){return (Number(q2.id)||0)-(Number(p.id)||0)});
+      saveTags();
+      if(save()){alert(n+"件を復元しました（すでにあるレシピはそのままです）");list()}
+    }catch(e){alert("このファイルは読み込めませんでした")}};
+  rd.readAsText(file)}
+function pickBackup(){
+  var i=document.createElement("input");i.type="file";i.accept=".json,application/json";
+  i.onchange=function(){if(i.files&&i.files[0])restoreFile(i.files[0])};i.click()}
 
 function saveTags(){try{localStorage.setItem("tags-v1",JSON.stringify(TAGS))}catch(e){}}
 function tagMgr(){
@@ -269,7 +303,17 @@ function copyText(t,msg){
 function isHead(l){return /^【.*】$/.test(l.trim())}
 function unnum(l){return l.trim().replace(/^(?:\d+[.．)）、]|[①-⑳])\s*/,"")}
 
-load();list();
+idbOpen().then(function(d){
+  idb=d;load();
+  if(!idb){list();return}
+  idbGet("recipes").then(function(v){
+    if(Array.isArray(v)){recipes=v}
+    else if(v===null){idb=null}
+    else{idbSet("recipes",recipes)}
+    list();
+    try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist()}catch(e){}
+  })
+});
 </script>
 </body>
 </html>
